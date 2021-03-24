@@ -2,141 +2,8 @@
 # Date: 11/22/2020
 # Desc: File contains classes needed to play Focus Game board game
 
-
-class Player:
-    """
-    Class represents a player of the FocusGame. Contains attributes and methods for
-    interacting with the FocusGame class. The FocusGame class will retrieve information
-    about the pieces the player has in reserve and captured, so that it can determine
-    whether a player can play from reserve and the game state, respectively.
-    Player does not need to interact with Board--FocusGame will take care of that
-    Attributes
-    ------------
-    name : name of the player
-    color : color of the player's pieces
-    reserved : pieces of player's own color they hold in reserve
-    captured : pieces of player's opponents color they have captured
-    """
-
-    def __init__(self, name, color):
-        """
-        Initializes instance of player. Name and color are taken as parameters;
-        reserved and captured are initialized to zero as consistent with the rules of
-        the game.
-        """
-        self._name = name
-        self._color = color
-        self._reserved = 0
-        self._captured = 0
-
-    def add_to_reserve(self):
-        """
-        Increase number of reserved pieces by one. A player can play these reserve
-        pieces to empty spots on the board.
-        """
-        self._reserved += 1
-
-    def add_to_captured(self):
-        """
-        Increase number of captured pieces by one. First player to capture six
-        pieces of the opponent wins the game.
-        """
-        self._captured += 1
-
-    def play_from_reserve(self):
-        """
-        Decrements the reserve value by 1, if possible, so player can play a piece
-        from reserve onto the board.
-        The playing of the piece, and the modification of the board, are done
-        by the FocusGame itself--this method just updates the player's reserve
-        """
-        self._reserved -= 1
-
-    def get_reserve(self):
-        """
-        Get method for reserved attribute--returns _reserved
-        """
-        return self._reserved
-
-    def get_captured(self):
-        """
-        Get method for captured attribute--returns _captured
-        """
-        return self._captured
-
-    def get_name(self):
-        """
-        Get method for player name
-        """
-        return self._name
-
-    def get_color(self):
-        """
-        Get method for player color
-        """
-        return self._color
-
-
-class Board:
-    """
-    Class represents the game board. Class is responsible for initializing an instance
-    of itself, and providing the information it knows to the FocusGame class.
-    Players and other classes interact with the board indirectly through FocusGame.
-    Class will also update itself as needed via valid actions from FocusGame
-    (such as updating its state due to Player moves). It does not need to
-    interact directly with Player--FocusGame will take care of that.
-    Attributes
-    ----------
-    board : the board, represented by a list of lists
-    """
-
-    def __init__(self, p1_color, p2_color):
-        """
-        Initializes the game board per standard layout rules. Will create the
-        pieces in the colors provided by players.
-        """
-        self._board_layout = []
-        for i in range(6):
-            if i % 2 == 0:
-                self._board_layout.append([[p1_color], [p1_color], [p2_color], [p2_color], [p1_color], [p1_color]])
-            else:
-                self._board_layout.append([[p2_color], [p2_color], [p1_color], [p1_color], [p2_color], [p2_color]])
-
-    def display_board(self):
-        """
-        Method prints board with layout of current pieces
-        """
-        print()
-        for row in self._board_layout:
-            print(row)
-
-    def modify_tile(self, tile_coord, new_stack):
-        """
-        Method modifies the value at the indicated coordinates. Essentially it
-        changes the pieces in the stack to resolve various game actions.
-        :param tile_coord: tuple indicating which tile should be modified
-        :param new_stack: list containing stack values (pieces in stack)
-        """
-        row_coord = tile_coord[0]
-        col_coord = tile_coord[1]
-        self._board_layout[row_coord][col_coord] = new_stack
-
-    def return_stack(self, tile_coord):
-        """
-        Method returns stack at a given tile. The bottom piece should be the 0th
-        element in a list, with the other pieces in order (rising to top)
-        :param tile_coord: the tile for which we want to see the stack of pieces. tuple
-        :return: return a list representing the stack of pieces at location
-        """
-        row_coord = tile_coord[0]
-        col_coord = tile_coord[1]
-
-        if 5 < row_coord or row_coord < 0:
-            return False
-        elif 5 < col_coord or col_coord < 0:
-            return False
-        else:
-            return self._board_layout[row_coord][col_coord]
+from Board import Board
+from Player import Player
 
 
 class FocusGame:
@@ -157,7 +24,7 @@ class FocusGame:
 
     def __init__(self, player1, player2):
         """
-        Initializes the game. Assigns players and pay order based on input. Sets
+        Initializes the game. Assigns players and play order based on input. Sets
         game state to default value (in progress). Calls Board class to initialize board.
         """
         player1_color = player1[1]
@@ -213,24 +80,36 @@ class FocusGame:
         :param number_of_pieces: number of pieces to move
         :return: True if valid, False if invalid
         """
-        if self._game_state != 'IN PROGRESS':
-            return False
-        if player_name != self._current_player_turn:
-            return False
-        if len(self.show_pieces(from_coordinates)) == 0:
-            return False
-        if number_of_pieces == 1 and len(self.show_pieces(from_coordinates)) == 0:
-            return False
+
+        # check if the coordinates are on the board. do this before other index manipulations to avoid errors
         all_coords = [from_coordinates[0], from_coordinates[1], to_coordinates[0], to_coordinates[1]]
         for coords in all_coords:
             if coords not in (0, 1, 2, 3, 4, 5):
                 return False
+        # can't move if the game is over
+        if self._game_state != 'IN PROGRESS':
+            return False
+        # can't move if it's not your turn
+        if player_name != self._current_player_turn:
+            return False
+        # can't perform a one piece move if there is not a piece on the board
+        if number_of_pieces == 1 and len(self.show_pieces(from_coordinates)) == 0:
+            return False
+        # can't move a piece if it's not at the current location on the board
+        if len(self.show_pieces(from_coordinates)) == 0:
+            return False
+        # can't move if the top piece of the stack does not belong to current player
         if self.show_pieces(from_coordinates)[-1] != self._players[player_name].get_color():
             return False
+        # must move between 1 and (stack size) of pieces
         if number_of_pieces < 0 or number_of_pieces > len(self.show_pieces(from_coordinates)):
             return False
+        # can only move the same number of tiles as number of pieces to be moved
         if abs(to_coordinates[0] - from_coordinates[0]) != number_of_pieces \
                 and abs(to_coordinates[1] - from_coordinates[1]) != number_of_pieces:
+            return False
+        # no diagonal moves
+        if to_coordinates[0] != from_coordinates[0] and to_coordinates[1] != to_coordinates[1]:
             return False
 
         return True
@@ -248,7 +127,7 @@ class FocusGame:
         player = self._players[player_name]
 
         while i < pieces_to_resolve_cnt:
-            current_piece = input_stack[0]
+            current_piece = input_stack[i]
             i += 1
 
             if current_piece == player.get_color():
@@ -337,7 +216,7 @@ class FocusGame:
         self._game_state = self.determine_game_state()
 
         if self._game_state in ('PLAYER 1 WINS', 'PLAYER 2 WINS'):
-            return 'Wins'
+            return f'{self._current_player_turn} wins'
         else:
             return result
 
@@ -399,7 +278,18 @@ class FocusGame:
             new_stack = self.resolve_stacks(new_stack, player_name)
         self._board.modify_tile(to_coordinates, new_stack)
 
-        return True
+        # change turn and set gamestate
+        if self._current_player_turn == self._player1.get_name():
+            self._current_player_turn = self._player2.get_name()
+        else:
+            self._current_player_turn = self._player1.get_name()
+
+        self._game_state = self.determine_game_state()
+
+        if self._game_state in ('PLAYER 1 WINS', 'PLAYER 2 WINS'):
+            return f'{self._current_player_turn} wins'
+        else:
+            return True
 
     def display_board(self):
         """
